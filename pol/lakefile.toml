@@ -1,0 +1,10 @@
+name = "pol"
+version = "0.1.0"
+defaultTargets = ["pol"]
+
+[[lean_lib]]
+name = "Pol"
+
+[[lean_exe]]
+name = "pol"
+root = "Main"

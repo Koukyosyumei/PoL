@@ -2,9 +2,9 @@ name = "pol"
 version = "0.1.0"
 defaultTargets = ["pol"]
 
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+
 [[lean_lib]]
 name = "Pol"
-
-[[lean_exe]]
-name = "pol"
-root = "Main"

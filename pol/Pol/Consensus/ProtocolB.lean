@@ -89,8 +89,9 @@ lemma longest_chain_is_prefix_of_all
 theorem protocolB_consistency
     (initial_sys : System)
     (blocks : ℕ → Block)
+    (is_leader_crashed_at_t: ℕ → ℕ → Bool)
     (h_initial_consistent : SystemIsConsistent initial_sys) :
-    ∀ t, SystemIsConsistent (evolve initial_sys blocks t) := by
+    ∀ t, SystemIsConsistent (evolve initial_sys blocks is_leader_crashed_at_t t) := by
   intro t
   induction t with
   | zero =>

@@ -31,7 +31,6 @@ def get_validator (sys : System) (i : ℕ) (h : i < sys.validators.length) : Val
     are mutually prefixing (i.e. one extends the other). -/
 def consistent_chains (sys : System) : Prop :=
   ∀ i j (h_i : i < sys.validators.length) (h_j : j < sys.validators.length),
-    i ≠ j →
     let val_i := get_validator sys i h_i
     let val_j := get_validator sys j h_j
     ¬val_i.crashed → ¬val_j.crashed →
@@ -73,10 +72,10 @@ the consistency invariant is maintained.
 -/
 theorem update_preserves_consistency (sys : System) (h_consistent : consistent_chains sys) (h_nonempty : sys.validators ≠ []) :
   consistent_chains (protocolB_update sys h_nonempty) := by
-  intro i j h_i hj h_neq
+  intro i j h_i hj
   have length_eq : (protocolB_update sys h_nonempty).validators.length = sys.validators.length := by
     simp [protocolB_update]
-  simp_all [protocolB_update, get_validator, List.get]
-  split_ifs with h_crashed_i h_crashed_j <;> simp_all [valid_extension]
+  simp_all [protocolB_update, get_validator]
+  split_ifs with h_crashed_i h_crashed_j <;> simp_all
 
 end ProtocolB

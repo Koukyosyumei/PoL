@@ -43,10 +43,11 @@ def evolve (initial_sys : System) (blocks : ℕ → Block) (is_leader_crashed_at
   | t+1 => protocolB_step (evolve initial_sys blocks is_leader_crashed_at_t t) (blocks t) (is_leader_crashed_at_t t)
 
 lemma longestchainincluded
-    (chains : List Chain):
+    (chains : List Chain)
+    (h : chains ≠ []) :
     get_longest_chain chains ∈ chains := by
-    simp [get_longest_chain]
-    sorry
+  unfold get_longest_chain
+  sorry
 
 lemma longesteq
     (chains : List Chain) (c L: Chain) (hc: c ∈ chains)
@@ -65,7 +66,7 @@ the list is a prefix to all other chains in that list.
 -/
 lemma longest_chain_is_prefix_of_all
     (chains : List Chain)
-    (h_nonempty: chains ≠ [])
+    (h_nonemoty : chains ≠ [])
     (h_consistent :
       ∀ c₁ ∈ chains,
       ∀ c₂ ∈ chains,
@@ -76,7 +77,7 @@ lemma longest_chain_is_prefix_of_all
   intro c hc
   -- Since all chains are consistent, in particular c and L are consistent
   have h_cons : ChainsAreConsistent c L := h_consistent c hc L (by
-    exact longestchainincluded chains
+    exact longestchainincluded chains h_nonemoty
   )
   cases h_cons with
   | inl h => exact h

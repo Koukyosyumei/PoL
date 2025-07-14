@@ -89,19 +89,8 @@ lemma longestchainincluded
     -- This is our goal, so we are done.
     exact h_is_in_chains
 
-theorem sublist_length_le_manual {α : Type*} (L c : List α) (h : L <+: c) : L.length ≤ c.length := by
-  induction h with
-  | intro =>
-    -- 空リストの場合: [].length ≤ c.length
-    simp_all
-
 lemma longesteq
     (chains : List Chain) (c L: Chain) (hc_mem: c ∈ chains)
-    (h_consistent :
-      ∀ c₁ ∈ chains,
-      ∀ c₂ ∈ chains,
-      ChainsAreConsistent c₁ c₂
-    )
     (hL: L = get_longest_chain chains) (hc: L <+: c) :
     L = c := by
    -- From the definition of get_longest_chain, its length is maximal.
@@ -145,9 +134,8 @@ lemma longest_chain_is_prefix_of_all
   | inl h => exact h
   | inr h =>
     have h₁: L = get_longest_chain chains := rfl
-    have h₂ := longesteq chains c L hc h_consistent h₁ h
+    have h₂ := longesteq chains c L hc h₁ h
     rw[← h₂]
-
 
 theorem protocolB_consistency
     (initial_sys : System)
@@ -163,17 +151,6 @@ theorem protocolB_consistency
     unfold evolve
     unfold protocolB_step
     simp_all
-
-    let sys_t := evolve initial_sys blocks t
-    have h_consistent_t : SystemIsConsistent sys_t := ih
-    let sys_next := protocolB_step sys_t (blocks t)
-    unfold SystemIsConsistent
-    intro v₁_next h_v₁_mem v₂_next h_v₂_mem h_v₁_nc h_v₂_nc
-    have : v₁_next.chain = v₂_next.chain := by {
-      simp only [evolve, protocolB_step] at h_v₁_mem h_v₂_mem
-      simp_all
-      sorry
-    }
     sorry
   }
 

@@ -168,7 +168,17 @@ theorem protocolB_consistency
     have h_chains_nonempty : chains ≠ [] := by {
       sorry
     }
-    sorry
+    by_cases h_c₁_new : c₁ = new_chain;
+    by_cases h_c₂_new : c₂ = new_chain;
+    {
+      sorry
+    }
+    {
+      sorry
+    }
+    {
+      sorry
+    }
   }
 
 

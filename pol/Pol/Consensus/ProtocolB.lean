@@ -148,9 +148,26 @@ theorem protocolB_consistency
   | zero =>
     exact h_initial_consistent
   | succ t ih => {
+    let sys_t := evolve initial_sys blocks is_leader_crashed_at_t t
+    let new_block := blocks t
+    let is_leader_crashed := is_leader_crashed_at_t t
     unfold evolve
     unfold protocolB_step
-    simp_all
+    intro v₁ hv₁ v₂ hv₂ hnc₁ hnc₂
+    -- Define the key components from the protocol step.
+    let chains := sys_t.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)
+    let longest_chain := get_longest_chain chains
+    let new_chain := longest_chain ++ [new_block]
+
+    -- Get the chains of the two validators we are considering.
+    let c₁ := v₁.chain
+    let c₂ := v₂.chain
+    have h_chains_consistent : ∀ c₁ ∈ chains, ∀ c₂ ∈ chains, ChainsAreConsistent c₁ c₂ := by{
+      sorry
+    }
+    have h_chains_nonempty : chains ≠ [] := by {
+      sorry
+    }
     sorry
   }
 

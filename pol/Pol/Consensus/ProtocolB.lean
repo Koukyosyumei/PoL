@@ -148,36 +148,61 @@ theorem protocolB_consistency
   | zero =>
     exact h_initial_consistent
   | succ t ih => {
+    -- Define the key components from the protocol step.
     let sys_t := evolve initial_sys blocks is_leader_crashed_at_t t
+    let sys_tp1 := evolve initial_sys blocks is_leader_crashed_at_t (t + 1)
     let new_block := blocks t
     let is_leader_crashed := is_leader_crashed_at_t t
-    unfold evolve
-    unfold protocolB_step
-    intro v₁ hv₁ v₂ hv₂ hnc₁ hnc₂
-    -- Define the key components from the protocol step.
-    let chains := sys_t.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)
-    let longest_chain := get_longest_chain chains
+    let old_chains := sys_t.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)
+    let longest_chain := get_longest_chain old_chains
     let new_chain := longest_chain ++ [new_block]
+    have h_sys_tp1 : sys_tp1 = (evolve initial_sys blocks is_leader_crashed_at_t (t + 1)) := rfl
 
-    -- Get the chains of the two validators we are considering.
-    let c₁ := v₁.chain
-    let c₂ := v₂.chain
-    have h_chains_consistent : ∀ c₁ ∈ chains, ∀ c₂ ∈ chains, ChainsAreConsistent c₁ c₂ := by{
+    --unfold evolve
+    --unfold protocolB_step
+    intro v₁ hv₁ v₂ hv₂ hnc₁ hnc₂
+    rw[← h_sys_tp1] at hv₁ hv₂
+    have h_prefix : ∀ v ∈ sys_tp1.validators, v.chain <+: new_chain := by {
       sorry
     }
-    have h_chains_nonempty : chains ≠ [] := by {
+    have h_nonupdate : ∀ v ∈ sys_tp1.validators, v.chain ≠ new_chain → v.chain ∈ old_chains := by {
       sorry
     }
-    by_cases h_c₁_new : c₁ = new_chain;
-    by_cases h_c₂_new : c₂ = new_chain;
+    have h_chains_consistent : ∀ c₁ ∈ old_chains, ∀ c₂ ∈ old_chains, ChainsAreConsistent c₁ c₂ := by{
+      sorry
+    }
+    --have h :
+
+    by_cases h_c₁_new : v₁.chain = new_chain;
     {
-      sorry
+      by_cases h_c₂_new : v₂.chain = new_chain;
+      {
+        unfold ChainsAreConsistent
+        left
+        rw[h_c₂_new]
+        apply h_prefix
+        exact hv₁
+      }
+      {
+        unfold ChainsAreConsistent
+        right
+        rw[h_c₁_new]
+        apply h_prefix
+        exact hv₂
+      }
     }
     {
-      sorry
-    }
-    {
-      sorry
+      by_cases h_c₂_new : v₂.chain = new_chain;
+      {
+        unfold ChainsAreConsistent
+        left
+        rw[h_c₂_new]
+        apply h_prefix
+        exact hv₁
+      }
+      {
+        sorry
+      }
     }
   }
 

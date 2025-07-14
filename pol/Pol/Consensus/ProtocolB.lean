@@ -1,4 +1,5 @@
 import Init.Data.Nat.Basic
+import Init.Data.List.Sublist
 
 import Mathlib.Data.List.Basic
 import Mathlib.Data.List.Defs
@@ -15,6 +16,10 @@ the longest chain from all received chains from non-crashed validators.
 -/
 def get_longest_chain (chains : List Chain) : Chain :=
   chains.foldl (fun best current ↦ if current.length > best.length then current else best) []
+
+lemma get_longest_chain_length_ge_of_mem {chains : List Chain} {c : Chain} (hc : c ∈ chains) :
+  (get_longest_chain chains).length ≥ c.length := by
+  sorry
 
 /--
 A single step of Protocol B.
@@ -42,15 +47,56 @@ def evolve (initial_sys : System) (blocks : ℕ → Block) (is_leader_crashed_at
   | 0   => initial_sys
   | t+1 => protocolB_step (evolve initial_sys blocks is_leader_crashed_at_t t) (blocks t) (is_leader_crashed_at_t t)
 
-lemma longestchainincluded
+lemma foldl_chain_mem_of_ne_nil
     (chains : List Chain)
-    (h : chains ≠ []) :
+    (h_ne : chains ≠ []) :
+    get_longest_chain chains = [] ∨
     get_longest_chain chains ∈ chains := by
-  unfold get_longest_chain
+  apply foldl_mem_of_ne_nil
+  · exact h_ne
+  · intro acc x
+    by_cases h : x.length > acc.length
+    · simp [h]
+    · simp [h]
+
+lemma empty_list_ne
+  (chains: List Chain)
+  (h₁: get_longest_chain chains = [])
+  (h₂: get_longest_chain chains ∉ chains) :
+  chains = [] := by
   sorry
 
+lemma longestchainincluded
+  (chains : List Chain)
+  (h : chains ≠ []) :
+  get_longest_chain chains ∈ chains := by
+  -- From `foldl_chain_mem_of_ne_nil`, we have two possibilities for the longest chain.
+  have h_cases : get_longest_chain chains = [] ∨ get_longest_chain chains ∈ chains :=
+    foldl_chain_mem_of_ne_nil chains h
+
+  -- We examine each case.
+  cases h_cases with
+  | inl h_is_empty =>
+    -- Case 1: `get_longest_chain chains = []`.
+    -- We show this leads to a contradiction by assuming the opposite of our goal.
+    by_contra h_not_in_chains
+    -- The lemma `empty_list_ne` takes `h_is_empty` and our new assumption `h_not_in_chains`.
+    have h_chains_is_empty : chains = [] := empty_list_ne chains h_is_empty h_not_in_chains
+    -- This result contradicts our initial hypothesis `h`.
+    exact h h_chains_is_empty
+  | inr h_is_in_chains =>
+    -- Case 2: `get_longest_chain chains ∈ chains`.
+    -- This is our goal, so we are done.
+    exact h_is_in_chains
+
+theorem sublist_length_le_manual {α : Type*} (L c : List α) (h : L <+: c) : L.length ≤ c.length := by
+  induction h with
+  | intro =>
+    -- 空リストの場合: [].length ≤ c.length
+    simp_all
+
 lemma longesteq
-    (chains : List Chain) (c L: Chain) (hc: c ∈ chains)
+    (chains : List Chain) (c L: Chain) (hc_mem: c ∈ chains)
     (h_consistent :
       ∀ c₁ ∈ chains,
       ∀ c₂ ∈ chains,
@@ -58,7 +104,23 @@ lemma longesteq
     )
     (hL: L = get_longest_chain chains) (hc: L <+: c) :
     L = c := by
-    sorry
+   -- From the definition of get_longest_chain, its length is maximal.
+    -- Since `c` is in `chains`, the length of `L` must be >= the length of `c`.
+    have h_len_ge : L.length ≥ c.length := by
+      rw [hL]
+      exact get_longest_chain_length_ge_of_mem hc_mem
+
+    have h_L_c_sublist := List.IsPrefix.sublist hc
+
+    -- From the definition of a prefix, the length of `L` must be <= the length of `c`.
+    have h_len_le : L.length ≤ c.length := List.Sublist.length_le h_L_c_sublist
+
+    -- Combining the two length inequalities, the lengths must be equal.
+    have h_len_eq : L.length = c.length := Nat.le_antisymm h_len_le h_len_ge
+
+    -- A prefix with the same length as the original list must be equal to that list.
+    rw[← List.Sublist.length_eq h_L_c_sublist]
+    exact h_len_eq
 
 /--
 **Lemma**: If a list of chains is pairwise consistent, the longest chain in

@@ -295,8 +295,17 @@ lemma validator_chain_prefix_of_longest_chain
         exact hchain
       . unfold SystemIsConsistent at hcon
         intro c₁ hc₁ c₂ hc₂
-        sorry
-      sorry
+        rw[hchain] at hc₁ hc₂
+        obtain ⟨v₁, hv₁_mem, hv₁_eq⟩ := List.mem_filterMap.1 hc₁
+        obtain ⟨v₂, hv₂_mem, hv₂_eq⟩ := List.mem_filterMap.1 hc₂
+        simp_all
+        obtain ⟨hv₁_eq₁, hv₁_eq₂⟩ := hv₁_eq
+        obtain ⟨hv₂_eq₁, hv₂_eq₂⟩ := hv₂_eq
+        rw[← hv₁_eq₂]
+        rw[← hv₂_eq₂]
+        exact hcon v₁ hv₁_mem v₂ hv₂_mem hv₁_eq₁ hv₂_eq₁
+      simp_all
+      use v
     }
 
 lemma system_consistency_unfolded_to_chains

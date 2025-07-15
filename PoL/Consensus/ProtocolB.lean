@@ -17,10 +17,79 @@ the longest chain from all received chains from non-crashed validators.
 def get_longest_chain (chains : List Chain) : Chain :=
   chains.foldl (fun best current ↦ if current.length > best.length then current else best) []
 
+lemma not_eq_swap {α : Type*} {a b : α} (h : ¬ a = b) : ¬ b = a := by
+  intro hba
+  apply h
+  exact Eq.symm hba
 
 lemma get_longest_chain_length_ge_of_mem {chains : List Chain} {c : Chain} (hc : c ∈ chains) :
   (get_longest_chain chains).length ≥ c.length := by
-  sorry
+  induction chains
+  case nil
+  . exact False.elim (List.not_mem_nil hc)
+  case cons hd tl ic
+  . have hfold : get_longest_chain (hd :: tl) =
+      if hd.length > (get_longest_chain tl).length then hd else get_longest_chain tl := by {
+        by_cases h_len : hd.length > (get_longest_chain tl).length;
+        {
+          simp_all
+          sorry
+        }
+        {
+          have h : (if List.length hd > List.length (get_longest_chain tl) then hd else get_longest_chain tl) = get_longest_chain tl := by {
+            simp_all
+          }
+          rw[h]
+          sorry
+        }
+      }
+    by_cases h_len : hd.length > (get_longest_chain tl).length;
+    {
+      rw[hfold]
+      simp_all
+      cases hc
+      case pos.inl h
+      . rw[h]
+      case pos.inr h
+      . have htmp := ic h
+        exact le_trans htmp (Nat.le_of_lt h_len)
+    }
+    {
+      rw[hfold]
+      simp_all
+      by_cases h_eq : List.length (get_longest_chain tl) = List.length hd;
+      {
+        simp_all
+        cases hc
+        case pos.inl h
+        . rw[h]
+        case pos.inr h
+        . have htmp := ic h
+          exact htmp
+      }
+      {
+        have h_lt : List.length hd < List.length (get_longest_chain tl)  := by {
+          have h_neq : List.length hd ≠ List.length (get_longest_chain tl) := by {
+            simp_all
+            exact not_eq_swap h_eq
+          }
+          apply lt_of_le_of_ne h_len h_neq
+        }
+        simp_all
+        have h₁ : (if List.length (get_longest_chain tl) < List.length hd then hd else get_longest_chain tl) = (get_longest_chain tl) := by {
+          simp_all
+        }
+        cases hc
+        case neg.inl h
+        . rw[h]
+          rw[h₁]
+          exact Nat.le_of_lt h_lt
+        case neg.inr h
+        . have htmp := ic h
+          rw[h₁]
+          exact htmp
+      }
+    }
 
 /--
 A single step of Protocol B.

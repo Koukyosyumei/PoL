@@ -240,6 +240,43 @@ lemma longest_chain_is_prefix_of_all_if_consistent
     have h₂ := longest_chain_eq_of_prefix_and_mem chains c L hc h₁ h
     rw[← h₂]
 
+lemma longer_chain_is_left_or_right
+  (x acc: Chain):
+  (fun current best => if best.length < current.length then current else best) x acc = acc ∨
+      (fun current best => if best.length < current.length then current else best) x acc = x := by {
+    simp_all
+    by_cases h: acc.length < x.length;
+    {
+      simp_all
+    }
+    {
+      simp_all
+    }
+  }
+
+lemma living_validator_implies_nonempty_chains
+    (sys: System)
+    (chains : List Chain)
+    (hv: ∃ v ∈ sys.validators, v.crashed = false)
+    (hchain : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)) :
+    chains ≠ [] := by {
+      -- Assume for contradiction that `chains = []`
+      intro hnil
+      -- Unpack the existence of a live validator
+      rcases hv with ⟨v, hv_in, hv_live⟩
+      -- Show `v.chain ∈ chains`
+      have hmem : v.chain ∈ chains := by
+        -- rewrite `chains` into the filterMap, then discharge the membership
+        rw [hchain]
+        apply List.mem_filterMap.2
+        · -- because `v` is live
+          use v
+          simp [hv_live]
+          exact hv_in
+      rw[hnil] at hmem
+      simp_all
+    }
+
 lemma validator_chain_prefix_of_longest_chain
     (sys : System)
     (v : Validator)
@@ -253,8 +290,12 @@ lemma validator_chain_prefix_of_longest_chain
     v.chain <+: longest := by {
       rw[hlongest]
       apply longest_chain_is_prefix_of_all_if_consistent
-      sorry
-      sorry
+      . apply living_validator_implies_nonempty_chains
+        use v
+        exact hchain
+      . unfold SystemIsConsistent at hcon
+        intro c₁ hc₁ c₂ hc₂
+        sorry
       sorry
     }
 

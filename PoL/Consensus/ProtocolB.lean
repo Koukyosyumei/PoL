@@ -6,7 +6,7 @@ import Mathlib.Data.List.Defs
 import Mathlib.Order.Basic
 import Mathlib.Tactic
 
-import Pol.Consensus.Utils
+import PoL.Consensus.Utils
 
 namespace ProtocolB
 
@@ -15,7 +15,13 @@ In Protocol B, the leader (assumed to be validator 0 for simplicity) selects
 the longest chain from all received chains from non-crashed validators.
 -/
 def get_longest_chain (chains : List Chain) : Chain :=
-  chains.foldl (fun best current ↦ if current.length > best.length then current else best) []
+  chains.foldr (fun current best ↦ if current.length > best.length then current else best) []
+
+lemma glc_fold (hd: Chain) (tl: List Chain) :
+  get_longest_chain (hd :: tl) =
+      if hd.length > (get_longest_chain tl).length then hd else get_longest_chain tl := by
+  unfold get_longest_chain
+  simp[List.foldr_cons]
 
 lemma not_eq_swap {α : Type*} {a b : α} (h : ¬ a = b) : ¬ b = a := by
   intro hba
@@ -29,20 +35,7 @@ lemma get_longest_chain_length_ge_of_mem {chains : List Chain} {c : Chain} (hc :
   . exact False.elim (List.not_mem_nil hc)
   case cons hd tl ic
   . have hfold : get_longest_chain (hd :: tl) =
-      if hd.length > (get_longest_chain tl).length then hd else get_longest_chain tl := by {
-        by_cases h_len : hd.length > (get_longest_chain tl).length;
-        {
-          simp_all
-          sorry
-        }
-        {
-          have h : (if List.length hd > List.length (get_longest_chain tl) then hd else get_longest_chain tl) = get_longest_chain tl := by {
-            simp_all
-          }
-          rw[h]
-          sorry
-        }
-      }
+      if hd.length > (get_longest_chain tl).length then hd else get_longest_chain tl := glc_fold hd tl
     by_cases h_len : hd.length > (get_longest_chain tl).length;
     {
       rw[hfold]
@@ -122,12 +115,13 @@ lemma foldl_chain_mem_of_ne_nil
     (h_ne : chains ≠ []) :
     get_longest_chain chains = [] ∨
     get_longest_chain chains ∈ chains := by
-  apply foldl_mem_of_ne_nil
+  apply foldr_mem_of_ne_nil
   · exact h_ne
   · intro acc x
-    by_cases h : x.length > acc.length
-    · simp [h]
-    · simp [h]
+    by_cases h : x.length < acc.length
+    . simp[h]
+    . simp[h]
+
 
 lemma empty_list_ne
   (chains: List Chain)
@@ -212,6 +206,7 @@ lemma prefix_longest
     (v : Validator)
     (chains : List Chain)
     (longest : Chain)
+    (hcon : SystemIsConsistent sys)
     (hmem : v ∈ sys.validators)
     (hcrash : v.crashed = false)
     (hchain : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none))
@@ -291,7 +286,8 @@ theorem protocolB_consistency
           have htmp : v_old.crashed = false := by {
             simp_all
           }
-          have h_prefix_longest := prefix_longest sys_t v_old old_chains longest_chain hv_mem htmp h_old_chains h_longest_chains
+          rw [← h_sys_t] at ih
+          have h_prefix_longest := prefix_longest sys_t v_old old_chains longest_chain ih hv_mem htmp h_old_chains h_longest_chains
           simp_all
           apply prefix_of_append_singleton
           exact h_prefix_longest

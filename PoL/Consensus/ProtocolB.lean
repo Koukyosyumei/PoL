@@ -9,6 +9,7 @@ import Mathlib.Tactic
 import PoL.Consensus.Utils
 import PoL.Consensus.System
 import PoL.Consensus.LongestChain
+import PoL.Consensus.Consistency
 
 namespace ProtocolB
 
@@ -37,29 +38,6 @@ A system protocolB_evolves over `t` time steps, with a new block added at each s
 def protocolB_evolve (initial_sys : System) (blocks : ℕ → Block) (is_leader_crashed_at_t: ℕ → ℕ → Bool) : ℕ → System
   | 0   => initial_sys
   | t+1 => protocolB_step_with_crash (protocolB_evolve initial_sys blocks is_leader_crashed_at_t t) (blocks t) (is_leader_crashed_at_t t)
-
-lemma system_consistency_unfolded_to_chains
-    (sys : System)
-    (chains: List Chain)
-    (h₁ : SystemIsConsistent sys)
-    (h₂ : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)) :
-    ∀ c₁ ∈ chains, ∀ c₂ ∈ chains, ChainsAreConsistent c₁ c₂ := by {
-      intro c₁ hc₁ c₂ hc₂
-      rw [h₂] at hc₁ hc₂
-      obtain ⟨v₁, hv₁_mem, hv₁_eq⟩ := List.mem_filterMap.1 hc₁
-      obtain ⟨v₂, hv₂_mem, hv₂_eq⟩ := List.mem_filterMap.1 hc₂
-      have not_crashed₁ : ¬v₁.crashed := by simp_all
-      have rfl_c₁ : v₁.chain = c₁ := by simp_all
-      have not_crashed₂ : ¬v₂.crashed := by simp_all
-      have rfl_c₂ : v₂.chain = c₂ := by simp_all
-      rw[← rfl_c₁, ← rfl_c₂]
-      unfold SystemIsConsistent at h₁
-      apply h₁
-      exact hv₁_mem
-      exact hv₂_mem
-      exact not_crashed₁
-      exact not_crashed₂
-    }
 
 theorem protocolB_consistency
     (initial_sys : System)

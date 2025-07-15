@@ -17,25 +17,25 @@ the longest chain from all received chains from non-crashed validators.
 def get_longest_chain (chains : List Chain) : Chain :=
   chains.foldr (fun current best ↦ if current.length > best.length then current else best) []
 
-lemma glc_fold (hd: Chain) (tl: List Chain) :
+lemma get_longest_chain_cons (hd: Chain) (tl: List Chain) :
   get_longest_chain (hd :: tl) =
       if hd.length > (get_longest_chain tl).length then hd else get_longest_chain tl := by
   unfold get_longest_chain
   simp[List.foldr_cons]
 
-lemma not_eq_swap {α : Type*} {a b : α} (h : ¬ a = b) : ¬ b = a := by
+lemma ne_symm {α : Type*} {a b : α} (h : ¬ a = b) : ¬ b = a := by
   intro hba
   apply h
   exact Eq.symm hba
 
-lemma get_longest_chain_length_ge_of_mem {chains : List Chain} {c : Chain} (hc : c ∈ chains) :
+lemma length_le_longest_chain_of_mem {chains : List Chain} {c : Chain} (hc : c ∈ chains) :
   (get_longest_chain chains).length ≥ c.length := by
   induction chains
   case nil
   . exact False.elim (List.not_mem_nil hc)
   case cons hd tl ic
   . have hfold : get_longest_chain (hd :: tl) =
-      if hd.length > (get_longest_chain tl).length then hd else get_longest_chain tl := glc_fold hd tl
+      if hd.length > (get_longest_chain tl).length then hd else get_longest_chain tl := get_longest_chain_cons hd tl
     by_cases h_len : hd.length > (get_longest_chain tl).length;
     {
       rw[hfold]
@@ -64,7 +64,7 @@ lemma get_longest_chain_length_ge_of_mem {chains : List Chain} {c : Chain} (hc :
         have h_lt : List.length hd < List.length (get_longest_chain tl)  := by {
           have h_neq : List.length hd ≠ List.length (get_longest_chain tl) := by {
             simp_all
-            exact not_eq_swap h_eq
+            exact ne_symm h_eq
           }
           apply lt_of_le_of_ne h_len h_neq
         }
@@ -90,7 +90,7 @@ In view v, the leader collects the chains of the validators, selects the longest
 constructs `new_chain` by appending a new block to that chain, and sends `new_chain` to every
 non‐crashed validator. The leader is updated in a round-robin fashion.
 -/
-def protocolB_step (sys : System) (new_block: Block) (is_leader_crashed: ℕ → Bool) : System :=
+def protocolB_step_with_crash (sys : System) (new_block: Block) (is_leader_crashed: ℕ → Bool) : System :=
   -- Step 1. Leader collects chains from non-crashed validators
   let chains := sys.validators.filterMap (λ v ↦ if ¬v.crashed then some v.chain else none)
   -- Step 2. Leader selects the longest chain (assuming non-empty due to h_nonempty and some non-crashed)
@@ -103,14 +103,14 @@ def protocolB_step (sys : System) (new_block: Block) (is_leader_crashed: ℕ →
   { validators := new_validators, leader := 0 }
 
 /--
-A system evolves over `t` time steps, with a new block added at each step.
-`evolve t` defines the state of the system at time `t`.
+A system protocolB_evolves over `t` time steps, with a new block added at each step.
+`protocolB_evolve t` defines the state of the system at time `t`.
 -/
-def evolve (initial_sys : System) (blocks : ℕ → Block) (is_leader_crashed_at_t: ℕ → ℕ → Bool) : ℕ → System
+def protocolB_evolve (initial_sys : System) (blocks : ℕ → Block) (is_leader_crashed_at_t: ℕ → ℕ → Bool) : ℕ → System
   | 0   => initial_sys
-  | t+1 => protocolB_step (evolve initial_sys blocks is_leader_crashed_at_t t) (blocks t) (is_leader_crashed_at_t t)
+  | t+1 => protocolB_step_with_crash (protocolB_evolve initial_sys blocks is_leader_crashed_at_t t) (blocks t) (is_leader_crashed_at_t t)
 
-lemma foldl_chain_mem_of_ne_nil
+lemma longest_chain_mem_or_empty_of_nonempty
     (chains : List Chain)
     (h_ne : chains ≠ []) :
     get_longest_chain chains = [] ∨
@@ -123,7 +123,7 @@ lemma foldl_chain_mem_of_ne_nil
     . simp[h]
 
 
-lemma empty_list_ne
+lemma longest_chain_empty_implies_empty_list
   (chains: List Chain)
   (h₁: get_longest_chain chains = [])
   (h₂: get_longest_chain chains ∉ chains) :
@@ -156,13 +156,13 @@ lemma empty_list_ne
   }
 
 
-lemma longestchainincluded
+lemma longest_chain_mem_of_nonempty
   (chains : List Chain)
   (h : chains ≠ []) :
   get_longest_chain chains ∈ chains := by
-  -- From `foldl_chain_mem_of_ne_nil`, we have two possibilities for the longest chain.
+  -- From `longest_chain_mem_or_empty_of_nonempty`, we have two possibilities for the longest chain.
   have h_cases : get_longest_chain chains = [] ∨ get_longest_chain chains ∈ chains :=
-    foldl_chain_mem_of_ne_nil chains h
+    longest_chain_mem_or_empty_of_nonempty chains h
 
   -- We examine each case.
   cases h_cases with
@@ -170,8 +170,8 @@ lemma longestchainincluded
     -- Case 1: `get_longest_chain chains = []`.
     -- We show this leads to a contradiction by assuming the opposite of our goal.
     by_contra h_not_in_chains
-    -- The lemma `empty_list_ne` takes `h_is_empty` and our new assumption `h_not_in_chains`.
-    have h_chains_is_empty : chains = [] := empty_list_ne chains h_is_empty h_not_in_chains
+    -- The lemma `longest_chain_empty_implies_empty_list` takes `h_is_empty` and our new assumption `h_not_in_chains`.
+    have h_chains_is_empty : chains = [] := longest_chain_empty_implies_empty_list chains h_is_empty h_not_in_chains
     -- This result contradicts our initial hypothesis `h`.
     exact h h_chains_is_empty
   | inr h_is_in_chains =>
@@ -179,7 +179,7 @@ lemma longestchainincluded
     -- This is our goal, so we are done.
     exact h_is_in_chains
 
-lemma longesteq
+lemma longest_chain_eq_of_prefix_and_mem
     (chains : List Chain) (c L: Chain) (hc_mem: c ∈ chains)
     (hL: L = get_longest_chain chains) (hc: L <+: c) :
     L = c := by
@@ -187,7 +187,7 @@ lemma longesteq
     -- Since `c` is in `chains`, the length of `L` must be >= the length of `c`.
     have h_len_ge : L.length ≥ c.length := by
       rw [hL]
-      exact get_longest_chain_length_ge_of_mem hc_mem
+      exact length_le_longest_chain_of_mem hc_mem
 
     have h_L_c_sublist := List.IsPrefix.sublist hc
 
@@ -205,7 +205,7 @@ lemma longesteq
 **Lemma**: If a list of chains is pairwise consistent, the longest chain in
 the list is a prefix to all other chains in that list.
 -/
-lemma longest_chain_is_prefix_of_all
+lemma longest_chain_is_prefix_of_all_if_consistent
     (chains : List Chain)
     (h_nonemoty : chains ≠ [])
     (h_consistent :
@@ -218,16 +218,16 @@ lemma longest_chain_is_prefix_of_all
   intro c hc
   -- Since all chains are consistent, in particular c and L are consistent
   have h_cons : ChainsAreConsistent c L := h_consistent c hc L (by
-    exact longestchainincluded chains h_nonemoty
+    exact longest_chain_mem_of_nonempty chains h_nonemoty
   )
   cases h_cons with
   | inl h => exact h
   | inr h =>
     have h₁: L = get_longest_chain chains := rfl
-    have h₂ := longesteq chains c L hc h₁ h
+    have h₂ := longest_chain_eq_of_prefix_and_mem chains c L hc h₁ h
     rw[← h₂]
 
-lemma prefix_longest
+lemma validator_chain_prefix_of_longest_chain
     (sys : System)
     (v : Validator)
     (chains : List Chain)
@@ -241,7 +241,7 @@ lemma prefix_longest
       sorry
     }
 
-lemma unfold_systemconsistency
+lemma system_consistency_unfolded_to_chains
     (sys : System)
     (chains: List Chain)
     (h₁ : SystemIsConsistent sys)
@@ -269,34 +269,34 @@ theorem protocolB_consistency
     (blocks : ℕ → Block)
     (is_leader_crashed_at_t: ℕ → ℕ → Bool)
     (h_initial_consistent : SystemIsConsistent initial_sys) :
-    ∀ t, SystemIsConsistent (evolve initial_sys blocks is_leader_crashed_at_t t) := by
+    ∀ t, SystemIsConsistent (protocolB_evolve initial_sys blocks is_leader_crashed_at_t t) := by
   intro t
   induction t with
   | zero =>
     exact h_initial_consistent
   | succ t ih => {
     -- Define the key components from the protocol step.
-    let sys_t := evolve initial_sys blocks is_leader_crashed_at_t t
-    let sys_tp1 := evolve initial_sys blocks is_leader_crashed_at_t (t + 1)
+    let sys_t := protocolB_evolve initial_sys blocks is_leader_crashed_at_t t
+    let sys_tp1 := protocolB_evolve initial_sys blocks is_leader_crashed_at_t (t + 1)
     let new_block := blocks t
     let is_leader_crashed := is_leader_crashed_at_t t
     let old_chains := sys_t.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)
     let longest_chain := get_longest_chain old_chains
     let new_chain := longest_chain ++ [new_block]
-    have h_sys_t : sys_t = (evolve initial_sys blocks is_leader_crashed_at_t t) := rfl
-    have h_sys_tp1 : sys_tp1 = (evolve initial_sys blocks is_leader_crashed_at_t (t + 1)) := rfl
+    have h_sys_t : sys_t = (protocolB_evolve initial_sys blocks is_leader_crashed_at_t t) := rfl
+    have h_sys_tp1 : sys_tp1 = (protocolB_evolve initial_sys blocks is_leader_crashed_at_t (t + 1)) := rfl
     have h_old_chains : old_chains = List.filterMap (fun v => if ¬v.crashed then some v.chain else none) sys_t.validators := rfl
     have h_longest_chains : longest_chain = get_longest_chain old_chains := rfl
     have h_new_chain : new_chain = longest_chain ++ [new_block] := rfl
     have h_new_block : new_block = blocks t := rfl
 
-    --unfold evolve
-    --unfold protocolB_step
+    --unfold protocolB_evolve
+    --unfold protocolB_step_with_crash
     intro v₁ hv₁ v₂ hv₂ hnc₁ hnc₂
     rw[← h_sys_tp1] at hv₁ hv₂
 
     have h_chains_consistent : ∀ c₁ ∈ old_chains, ∀ c₂ ∈ old_chains, ChainsAreConsistent c₁ c₂ := by{
-      apply unfold_systemconsistency
+      apply system_consistency_unfolded_to_chains
       exact ih
       rfl
     }
@@ -313,10 +313,10 @@ theorem protocolB_consistency
             simp_all
           }
           rw [← h_sys_t] at ih
-          have h_prefix_longest := prefix_longest sys_t v_old old_chains longest_chain ih hv_mem htmp h_old_chains h_longest_chains
+          have h_validator_chain_prefix_of_longest_chain := validator_chain_prefix_of_longest_chain sys_t v_old old_chains longest_chain ih hv_mem htmp h_old_chains h_longest_chains
           simp_all
           apply prefix_of_append_singleton
-          exact h_prefix_longest
+          exact h_validator_chain_prefix_of_longest_chain
         }
         {
           simp_all

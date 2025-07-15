@@ -7,4 +7,4 @@ name = "mathlib"
 scope = "leanprover-community"
 
 [[lean_lib]]
-name = "Pol"
+name = "PoL"

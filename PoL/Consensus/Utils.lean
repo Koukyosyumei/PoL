@@ -127,3 +127,13 @@ induction el with
     -- Case B: `tail.foldl f (f init head) ∈ tail`
     -- If the result is in `tail`, it is also in `head :: tail`.
     exact Or.inr (List.mem_of_mem_tail h_mem)
+
+lemma prefix_of_append_singleton {α : Type*} (x y : List α) (z : α) (h : x <+: y) : x <+: y ++ [z] := by
+  -- Unfold the definition of IsPrefix from the hypothesis h
+  rcases h with ⟨t, rfl⟩
+  -- The goal is to show that there exists a list t' such that y ++ [z] = x ++ t'
+  -- By substituting y with x ++ t, we get (x ++ t) ++ [z]
+  -- Using the associativity of append, this is equal to x ++ (t ++ [z])
+  -- So we can choose t' = t ++ [z]
+  use t ++ [z]
+  rw [List.append_assoc]

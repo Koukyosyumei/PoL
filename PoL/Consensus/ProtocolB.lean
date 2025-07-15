@@ -19,7 +19,42 @@ def get_longest_chain (chains : List Chain) : Chain :=
 
 lemma get_longest_chain_length_ge_of_mem {chains : List Chain} {c : Chain} (hc : c ∈ chains) :
   (get_longest_chain chains).length ≥ c.length := by
-  sorry
+  induction chains with
+  | nil =>
+    -- 空リストには要素 c が含まれないので矛盾
+    --exact False.elim (List.not_mem_nil _ hc)
+    sorry
+  | cons d ds ih =>
+    -- c ∈ d :: ds から c = d ∨ c ∈ ds が得られる
+    cases List.mem_cons.1 hc with
+    | inl hd =>
+      -- c = d の場合は foldl の結果も d になるので自明
+      -- get_longest_chain (d :: ds) = if _ then _ else d = d
+      simp_all
+      set ds' := d :: ds
+      have hd_mem : d ∈ ds' := by {
+        unfold ds'
+        simp_all
+      }
+      sorry
+    | inr hds =>
+      -- c ∈ ds の場合
+      simp [get_longest_chain]  -- foldl の定義に沿って if-then-else が展開される
+      let L := get_longest_chain ds
+      split_ifs with h'
+      · -- 分岐1: L.length > d.length のとき、結果は L なので帰納仮定で示せる
+        simp_all
+        sorry
+      · -- 分岐2: ¬(L.length > d.length) ⇒ L.length ≤ d.length で、
+        --   d.length ≥ c.length を示せば良い
+        have hle : L.length ≤ d.length := by {
+          sorry
+        }
+        have ih' : L.length ≥ c.length := ih hds
+        -- L.length ≤ d.length と L.length ≥ c.length から
+        -- d.length ≥ c.length が従う
+        --exact le_trans hle ih'
+        sorry
 
 /--
 A single step of Protocol B.
@@ -36,7 +71,7 @@ def protocolB_step (sys : System) (new_block: Block) (is_leader_crashed: ℕ →
   let new_chain := longest_chain ++ [new_block]
   -- Step 4. Non-crashed validators update their state.
   let new_validators := sys.validators.map (λ v ↦
-      if ¬ v.crashed ∧ (is_leader_crashed v.id) then { chain := new_chain, crashed := v.crashed, id := v.id } else v)
+      if (¬ v.crashed) ∧ (¬ is_leader_crashed v.id) then { chain := new_chain, crashed := v.crashed, id := v.id } else v)
   { validators := new_validators, leader := 0 }
 
 /--
@@ -137,6 +172,42 @@ lemma longest_chain_is_prefix_of_all
     have h₂ := longesteq chains c L hc h₁ h
     rw[← h₂]
 
+lemma prefix_longest
+    (sys : System)
+    (v : Validator)
+    (chains : List Chain)
+    (longest : Chain)
+    (hmem : v ∈ sys.validators)
+    (hcrash : v.crashed = false)
+    (hchain : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none))
+    (hlongest : longest = get_longest_chain chains) :
+    v.chain <+: longest := by {
+      sorry
+    }
+
+lemma unfold_systemconsistency
+    (sys : System)
+    (chains: List Chain)
+    (h₁ : SystemIsConsistent sys)
+    (h₂ : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)) :
+    ∀ c₁ ∈ chains, ∀ c₂ ∈ chains, ChainsAreConsistent c₁ c₂ := by {
+      intro c₁ hc₁ c₂ hc₂
+      rw [h₂] at hc₁ hc₂
+      obtain ⟨v₁, hv₁_mem, hv₁_eq⟩ := List.mem_filterMap.1 hc₁
+      obtain ⟨v₂, hv₂_mem, hv₂_eq⟩ := List.mem_filterMap.1 hc₂
+      have not_crashed₁ : ¬v₁.crashed := by simp_all
+      have rfl_c₁ : v₁.chain = c₁ := by simp_all
+      have not_crashed₂ : ¬v₂.crashed := by simp_all
+      have rfl_c₂ : v₂.chain = c₂ := by simp_all
+      rw[← rfl_c₁, ← rfl_c₂]
+      unfold SystemIsConsistent at h₁
+      apply h₁
+      exact hv₁_mem
+      exact hv₂_mem
+      exact not_crashed₁
+      exact not_crashed₂
+    }
+
 theorem protocolB_consistency
     (initial_sys : System)
     (blocks : ℕ → Block)
@@ -156,22 +227,75 @@ theorem protocolB_consistency
     let old_chains := sys_t.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)
     let longest_chain := get_longest_chain old_chains
     let new_chain := longest_chain ++ [new_block]
+    have h_sys_t : sys_t = (evolve initial_sys blocks is_leader_crashed_at_t t) := rfl
     have h_sys_tp1 : sys_tp1 = (evolve initial_sys blocks is_leader_crashed_at_t (t + 1)) := rfl
+    have h_old_chains : old_chains = List.filterMap (fun v => if ¬v.crashed then some v.chain else none) sys_t.validators := rfl
+    have h_longest_chains : longest_chain = get_longest_chain old_chains := rfl
+    have h_new_chain : new_chain = longest_chain ++ [new_block] := rfl
+    have h_new_block : new_block = blocks t := rfl
 
     --unfold evolve
     --unfold protocolB_step
     intro v₁ hv₁ v₂ hv₂ hnc₁ hnc₂
     rw[← h_sys_tp1] at hv₁ hv₂
-    have h_prefix : ∀ v ∈ sys_tp1.validators, v.chain <+: new_chain := by {
-      sorry
-    }
-    have h_nonupdate : ∀ v ∈ sys_tp1.validators, v.chain ≠ new_chain → v.chain ∈ old_chains := by {
-      sorry
-    }
+
     have h_chains_consistent : ∀ c₁ ∈ old_chains, ∀ c₂ ∈ old_chains, ChainsAreConsistent c₁ c₂ := by{
-      sorry
+      apply unfold_systemconsistency
+      exact ih
+      rfl
     }
-    --have h :
+    have h_prefix : ∀ v ∈ sys_tp1.validators, v.crashed = false → v.chain <+: new_chain := by {
+      intro v hv
+      obtain ⟨v_old, hv_mem, rfl⟩ := List.mem_map.1 hv
+      by_cases h₁ : ¬v_old.crashed = true;
+      {
+        by_cases h₂ : is_leader_crashed_at_t t v_old.id = true;
+        {
+          rw[← h_sys_t] at hv_mem
+          rw[← h_old_chains]
+          have htmp : v_old.crashed = false := by {
+            simp_all
+          }
+          have h_prefix_longest := prefix_longest sys_t v_old old_chains longest_chain hv_mem htmp h_old_chains h_longest_chains
+          simp_all
+          apply prefix_of_append_singleton
+          exact h_prefix_longest
+        }
+        {
+          simp_all
+        }
+      }
+      {
+        simp_all
+      }
+    }
+    have h_nonupdate : ∀ v ∈ sys_tp1.validators, v.crashed = false → v.chain ≠ new_chain → v.chain ∈ old_chains := by {
+      intro v hv hcf hne
+      obtain ⟨v_old, hv_mem, rfl⟩ := List.mem_map.1 hv
+      have h_crash_v : is_leader_crashed_at_t t v_old.id = true := by {
+        by_contra
+        rename_i h_id
+        simp_all
+        by_cases h₁ : ¬v_old.crashed = true;
+        {
+          simp_all
+        }
+        {
+          simp_all
+        }
+      }
+      rw[h_crash_v]
+      by_cases h₁ : ¬v_old.crashed = true;
+      {
+        simp_all
+        rw[← h_sys_t]
+        rw[← h_sys_t] at hv_mem
+        use v_old
+      }
+      {
+        simp_all
+      }
+    }
 
     by_cases h_c₁_new : v₁.chain = new_chain;
     {
@@ -182,6 +306,7 @@ theorem protocolB_consistency
         rw[h_c₂_new]
         apply h_prefix
         exact hv₁
+        simp_all
       }
       {
         unfold ChainsAreConsistent
@@ -189,6 +314,9 @@ theorem protocolB_consistency
         rw[h_c₁_new]
         apply h_prefix
         exact hv₂
+        unfold Not at hnc₂
+        simp at hnc₂
+        exact hnc₂
       }
     }
     {
@@ -199,9 +327,24 @@ theorem protocolB_consistency
         rw[h_c₂_new]
         apply h_prefix
         exact hv₁
+        unfold Not at hnc₁
+        simp at hnc₁
+        exact hnc₁
       }
       {
-        sorry
+        apply h_chains_consistent
+        . apply h_nonupdate
+          exact hv₁
+          unfold Not at hnc₁
+          simp at hnc₁
+          exact hnc₁
+          exact h_c₁_new
+        . apply h_nonupdate
+          exact hv₂
+          unfold Not at hnc₂
+          simp at hnc₂
+          exact hnc₂
+          exact h_c₂_new
       }
     }
   }

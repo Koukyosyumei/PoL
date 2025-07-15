@@ -3,6 +3,7 @@
 .#*
 *.lock
 .lake
+/.lake
 /build
 /src/lakefile.toml
 /tests/lakefile.toml

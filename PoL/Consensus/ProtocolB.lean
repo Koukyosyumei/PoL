@@ -17,44 +17,10 @@ the longest chain from all received chains from non-crashed validators.
 def get_longest_chain (chains : List Chain) : Chain :=
   chains.foldl (fun best current ↦ if current.length > best.length then current else best) []
 
+
 lemma get_longest_chain_length_ge_of_mem {chains : List Chain} {c : Chain} (hc : c ∈ chains) :
   (get_longest_chain chains).length ≥ c.length := by
-  induction chains with
-  | nil =>
-    -- 空リストには要素 c が含まれないので矛盾
-    --exact False.elim (List.not_mem_nil _ hc)
-    sorry
-  | cons d ds ih =>
-    -- c ∈ d :: ds から c = d ∨ c ∈ ds が得られる
-    cases List.mem_cons.1 hc with
-    | inl hd =>
-      -- c = d の場合は foldl の結果も d になるので自明
-      -- get_longest_chain (d :: ds) = if _ then _ else d = d
-      simp_all
-      set ds' := d :: ds
-      have hd_mem : d ∈ ds' := by {
-        unfold ds'
-        simp_all
-      }
-      sorry
-    | inr hds =>
-      -- c ∈ ds の場合
-      simp [get_longest_chain]  -- foldl の定義に沿って if-then-else が展開される
-      let L := get_longest_chain ds
-      split_ifs with h'
-      · -- 分岐1: L.length > d.length のとき、結果は L なので帰納仮定で示せる
-        simp_all
-        sorry
-      · -- 分岐2: ¬(L.length > d.length) ⇒ L.length ≤ d.length で、
-        --   d.length ≥ c.length を示せば良い
-        have hle : L.length ≤ d.length := by {
-          sorry
-        }
-        have ih' : L.length ≥ c.length := ih hds
-        -- L.length ≤ d.length と L.length ≥ c.length から
-        -- d.length ≥ c.length が従う
-        --exact le_trans hle ih'
-        sorry
+  sorry
 
 /--
 A single step of Protocol B.

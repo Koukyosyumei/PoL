@@ -6,41 +6,6 @@ import Mathlib.Data.List.Defs
 import Mathlib.Order.Basic
 import Mathlib.Tactic
 
-/-- A Block is represented as a string (e.g. its hash). -/
-abbrev Block := String
-
-/-- A Chain is a list of Blocks. -/
-abbrev Chain := List Block
-
-/-- A Validator is modeled by its current chain and a flag indicating if it has crashed. -/
-structure Validator where
-    chain   : List Block
-    crashed : Bool
-    id      : ℕ
-deriving Repr
-
-/-- A System consists of a list of validators and a designated leader (ommitted for simplicity). -/
-structure System  where
-  validators : List Validator
-  leader     : ℕ
-deriving Repr
-
-/--
-Two chains are consistent if one is a prefix of the other. This ensures
-there are no forks among the chains.
--/
-def ChainsAreConsistent (c₁ c₂ : Chain) : Prop :=
-  c₁ <+: c₂ ∨ c₂ <+: c₁
-
-/--
-A system has the consistency property if the chains of any two non-crashed
-validators are consistent.
--/
-def SystemIsConsistent (sys : System) : Prop :=
-  ∀ v₁ ∈ sys.validators,
-  ∀ v₂ ∈ sys.validators,
-  ¬v₁.crashed → ¬v₂.crashed → ChainsAreConsistent v₁.chain v₂.chain
-
 lemma foldr_mem_of_ne_nil {α : Type*}
   (f : α → α → α)
   (init : α)
@@ -269,3 +234,8 @@ lemma prefix_of_append_singleton {α : Type*} (x y : List α) (z : α) (h : x <+
   -- So we can choose t' = t ++ [z]
   use t ++ [z]
   rw [List.append_assoc]
+
+lemma ne_symm {α : Type*} {a b : α} (h : ¬ a = b) : ¬ b = a := by
+  intro hba
+  apply h
+  exact Eq.symm hba

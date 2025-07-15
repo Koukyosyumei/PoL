@@ -110,17 +110,30 @@ def protocolB_evolve (initial_sys : System) (blocks : ℕ → Block) (is_leader_
   | 0   => initial_sys
   | t+1 => protocolB_step_with_crash (protocolB_evolve initial_sys blocks is_leader_crashed_at_t t) (blocks t) (is_leader_crashed_at_t t)
 
+lemma longest_chain_of_empty_is_empty (chains: List Chain) (he: chains = []):
+  get_longest_chain chains = [] := by {
+    rw[he]
+    simp[get_longest_chain]
+  }
+
 lemma longest_chain_mem_or_empty_of_nonempty
-    (chains : List Chain)
-    (h_ne : chains ≠ []) :
+    (chains : List Chain):
     get_longest_chain chains = [] ∨
     get_longest_chain chains ∈ chains := by
-  apply foldr_mem_of_ne_nil
-  · exact h_ne
-  · intro acc x
-    by_cases h : x.length < acc.length
-    . simp[h]
-    . simp[h]
+  by_cases h_ne: chains ≠ [];
+  {
+    apply foldr_mem_of_ne_nil
+    · exact h_ne
+    · intro acc x
+      by_cases h : x.length < acc.length
+      . simp[h]
+      . simp[h]
+  }
+  {
+    simp_all
+    apply longest_chain_of_empty_is_empty
+    rfl
+  }
 
 
 lemma longest_chain_empty_implies_empty_list
@@ -162,7 +175,7 @@ lemma longest_chain_mem_of_nonempty
   get_longest_chain chains ∈ chains := by
   -- From `longest_chain_mem_or_empty_of_nonempty`, we have two possibilities for the longest chain.
   have h_cases : get_longest_chain chains = [] ∨ get_longest_chain chains ∈ chains :=
-    longest_chain_mem_or_empty_of_nonempty chains h
+    longest_chain_mem_or_empty_of_nonempty chains
 
   -- We examine each case.
   cases h_cases with
@@ -238,6 +251,10 @@ lemma validator_chain_prefix_of_longest_chain
     (hchain : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none))
     (hlongest : longest = get_longest_chain chains) :
     v.chain <+: longest := by {
+      rw[hlongest]
+      apply longest_chain_is_prefix_of_all_if_consistent
+      sorry
+      sorry
       sorry
     }
 

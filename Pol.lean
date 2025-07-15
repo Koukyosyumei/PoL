@@ -1,3 +1,3 @@
--- This module serves as the root of the `Pol` library.
+-- This module serves as the root of the `PoL` library.
 -- Import modules here that should be built as part of the library.
-import Pol.Basic
+import PoL.Basic

@@ -128,7 +128,33 @@ lemma empty_list_ne
   (h₁: get_longest_chain chains = [])
   (h₂: get_longest_chain chains ∉ chains) :
   chains = [] := by
-  sorry
+  by_contra hc
+  cases chains with
+  | nil => simp_all
+  | cons x xs => {
+    simp [get_longest_chain] at h₁ h₂
+    by_cases hx : x.length > List.length (get_longest_chain xs);
+    {
+      simp [get_longest_chain] at hx
+      simp [hx] at h₁
+      have h : [] ∈ x :: xs := by simp [h₁]
+      have : [] ∉ x :: xs := by simp_all
+
+      contradiction
+    }
+    {
+      simp [get_longest_chain] at hx
+      have h₃: ¬ List.length
+          (List.foldr (fun current best => if List.length best < List.length current then current else best) [] xs) <
+        List.length x := by {
+          simp_all
+        }
+      simp [h₃] at h₁ h₂
+      rw[h₁] at hx
+      simp_all
+    }
+  }
+
 
 lemma longestchainincluded
   (chains : List Chain)

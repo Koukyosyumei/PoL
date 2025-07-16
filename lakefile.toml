@@ -1,6 +1,6 @@
 name = "pol"
 version = "0.1.0"
-defaultTargets = ["pol"]
+defaultTargets = ["PoL"]
 
 [[require]]
 name = "mathlib"

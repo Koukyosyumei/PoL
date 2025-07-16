@@ -7,9 +7,9 @@ import Mathlib.Order.Basic
 import Mathlib.Tactic
 
 import PoL.Consensus.Utils
-import PoL.Consensus.System
+import PoL.Consensus.ProtocolB.SystemB
 import PoL.Consensus.LongestChain
-import PoL.Consensus.Consistency
+import PoL.Consensus.ProtocolB.UtilsB
 
 namespace ProtocolB
 
@@ -19,7 +19,7 @@ In view v, the leader collects the chains of the validators, selects the longest
 constructs `new_chain` by appending a new block to that chain, and sends `new_chain` to every
 non‐crashed validator. The leader is updated in a round-robin fashion.
 -/
-def protocolB_step_with_crash (sys : System) (new_block: Block) (is_leader_crashed: ℕ → Bool) : System :=
+def protocolB_step_with_crash (sys : SystemB) (new_block: Block) (is_leader_crashed: ℕ → Bool) : SystemB :=
   -- Step 1. Leader collects chains from non-crashed validators
   let chains := sys.validators.filterMap (λ v ↦ if ¬v.crashed then some v.chain else none)
   -- Step 2. Leader selects the longest chain (assuming non-empty due to h_nonempty and some non-crashed)
@@ -35,16 +35,16 @@ def protocolB_step_with_crash (sys : System) (new_block: Block) (is_leader_crash
 A system protocolB_evolves over `t` time steps, with a new block added at each step.
 `protocolB_evolve t` defines the state of the system at time `t`.
 -/
-def protocolB_evolve (initial_sys : System) (blocks : ℕ → Block) (is_leader_crashed_at_t: ℕ → ℕ → Bool) : ℕ → System
+def protocolB_evolve (initial_sys : SystemB) (blocks : ℕ → Block) (is_leader_crashed_at_t: ℕ → ℕ → Bool) : ℕ → SystemB
   | 0   => initial_sys
   | t+1 => protocolB_step_with_crash (protocolB_evolve initial_sys blocks is_leader_crashed_at_t t) (blocks t) (is_leader_crashed_at_t t)
 
 theorem protocolB_consistency
-    (initial_sys : System)
+    (initial_sys : SystemB)
     (blocks : ℕ → Block)
     (is_leader_crashed_at_t: ℕ → ℕ → Bool)
-    (h_initial_consistent : SystemIsConsistent initial_sys) :
-    ∀ t, SystemIsConsistent (protocolB_evolve initial_sys blocks is_leader_crashed_at_t t) := by
+    (h_initial_consistent : SystemBIsConsistent initial_sys) :
+    ∀ t, SystemBIsConsistent (protocolB_evolve initial_sys blocks is_leader_crashed_at_t t) := by
   intro t
   induction t with
   | zero =>

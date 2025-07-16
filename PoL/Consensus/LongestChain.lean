@@ -6,8 +6,8 @@ import Mathlib.Data.List.Defs
 import Mathlib.Order.Basic
 import Mathlib.Tactic
 
+import PoL.Consensus.Chain
 import PoL.Consensus.Utils
-import PoL.Consensus.System
 
 /--
 In Protocol B, the leader (assumed to be validator 0 for simplicity) selects

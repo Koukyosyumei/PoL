@@ -7,11 +7,11 @@ import Mathlib.Order.Basic
 import Mathlib.Tactic
 
 import PoL.Consensus.Utils
-import PoL.Consensus.System
 import PoL.Consensus.LongestChain
+import PoL.Consensus.ProtocolB.SystemB
 
 lemma living_validator_implies_nonempty_chains
-    (sys: System)
+    (sys: SystemB)
     (chains : List Chain)
     (hv: ∃ v ∈ sys.validators, v.crashed = false)
     (hchain : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)) :
@@ -34,11 +34,11 @@ lemma living_validator_implies_nonempty_chains
     }
 
 lemma validator_chain_prefix_of_longest_chain
-    (sys : System)
-    (v : Validator)
+    (sys : SystemB)
+    (v : ValidatorB)
     (chains : List Chain)
     (longest : Chain)
-    (hcon : SystemIsConsistent sys)
+    (hcon : SystemBIsConsistent sys)
     (hmem : v ∈ sys.validators)
     (hcrash : v.crashed = false)
     (hchain : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none))
@@ -49,7 +49,7 @@ lemma validator_chain_prefix_of_longest_chain
       . apply living_validator_implies_nonempty_chains
         use v
         exact hchain
-      . unfold SystemIsConsistent at hcon
+      . unfold SystemBIsConsistent at hcon
         intro c₁ hc₁ c₂ hc₂
         rw[hchain] at hc₁ hc₂
         obtain ⟨v₁, hv₁_mem, hv₁_eq⟩ := List.mem_filterMap.1 hc₁
@@ -65,9 +65,9 @@ lemma validator_chain_prefix_of_longest_chain
     }
 
 lemma system_consistency_unfolded_to_chains
-    (sys : System)
+    (sys : SystemB)
     (chains: List Chain)
-    (h₁ : SystemIsConsistent sys)
+    (h₁ : SystemBIsConsistent sys)
     (h₂ : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)) :
     ∀ c₁ ∈ chains, ∀ c₂ ∈ chains, ChainsAreConsistent c₁ c₂ := by {
       intro c₁ hc₁ c₂ hc₂
@@ -79,7 +79,7 @@ lemma system_consistency_unfolded_to_chains
       have not_crashed₂ : ¬v₂.crashed := by simp_all
       have rfl_c₂ : v₂.chain = c₂ := by simp_all
       rw[← rfl_c₁, ← rfl_c₂]
-      unfold SystemIsConsistent at h₁
+      unfold SystemBIsConsistent at h₁
       apply h₁
       exact hv₁_mem
       exact hv₂_mem

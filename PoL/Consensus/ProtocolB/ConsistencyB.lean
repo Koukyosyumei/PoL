@@ -19,7 +19,7 @@ In view v, the leader collects the chains of the validators, selects the longest
 constructs `new_chain` by appending a new block to that chain, and sends `new_chain` to every
 non‐crashed validator. The leader is updated in a round-robin fashion.
 -/
-def protocolB_step_with_crash (sys : SystemB) (new_block: Block) (is_leader_crashed: ℕ → Bool) : SystemB :=
+def protocolB_step_with_crash (sys : SystemB) (new_block: Block) (is_leader_crashed: ℕ → Bool) (next_leader: SystemB → ℕ) : SystemB :=
   -- Step 1. Leader collects chains from non-crashed validators
   let chains := sys.validators.filterMap (λ v ↦ if ¬v.crashed then some v.chain else none)
   -- Step 2. Leader selects the longest chain (assuming non-empty due to h_nonempty and some non-crashed)
@@ -29,37 +29,43 @@ def protocolB_step_with_crash (sys : SystemB) (new_block: Block) (is_leader_cras
   -- Step 4. Non-crashed validators update their state.
   let new_validators := sys.validators.map (λ v ↦
       if (¬ v.crashed) ∧ (¬ is_leader_crashed v.id) then { chain := new_chain, crashed := v.crashed, id := v.id } else v)
-  { validators := new_validators, leader := 0 }
+  { validators := new_validators, leader := next_leader sys }
 
 /--
 A system protocolB_evolves over `t` time steps, with a new block added at each step.
 `protocolB_evolve t` defines the state of the system at time `t`.
 -/
-def protocolB_evolve (initial_sys : SystemB) (blocks : ℕ → Block) (is_leader_crashed_at_t: ℕ → ℕ → Bool) : ℕ → SystemB
+def protocolB_evolve
+  (initial_sys : SystemB) (blocks : ℕ → Block)
+  (is_leader_crashed_at_t: ℕ → ℕ → Bool) (next_leader_at_t: ℕ → SystemB → ℕ)
+  : ℕ → SystemB
   | 0   => initial_sys
-  | t+1 => protocolB_step_with_crash (protocolB_evolve initial_sys blocks is_leader_crashed_at_t t) (blocks t) (is_leader_crashed_at_t t)
+  | t+1 => protocolB_step_with_crash
+            (protocolB_evolve initial_sys blocks is_leader_crashed_at_t next_leader_at_t t)
+            (blocks t) (is_leader_crashed_at_t t) (next_leader_at_t t)
 
 theorem protocolB_consistency
     (initial_sys : SystemB)
     (blocks : ℕ → Block)
     (is_leader_crashed_at_t: ℕ → ℕ → Bool)
-    (h_initial_consistent : SystemBIsConsistent initial_sys) :
-    ∀ t, SystemBIsConsistent (protocolB_evolve initial_sys blocks is_leader_crashed_at_t t) := by
+    (h_initial_consistent : SystemBIsConsistent initial_sys)
+    (next_leader_at_t: ℕ → SystemB → ℕ) :
+    ∀ t, SystemBIsConsistent (protocolB_evolve initial_sys blocks is_leader_crashed_at_t next_leader_at_t t) := by
   intro t
   induction t with
   | zero =>
     exact h_initial_consistent
   | succ t ih => {
     -- Define the key components from the protocol step.
-    let sys_t := protocolB_evolve initial_sys blocks is_leader_crashed_at_t t
-    let sys_tp1 := protocolB_evolve initial_sys blocks is_leader_crashed_at_t (t + 1)
+    let sys_t := protocolB_evolve initial_sys blocks is_leader_crashed_at_t next_leader_at_t t
+    let sys_tp1 := protocolB_evolve initial_sys blocks is_leader_crashed_at_t next_leader_at_t (t + 1)
     let new_block := blocks t
     let is_leader_crashed := is_leader_crashed_at_t t
     let old_chains := sys_t.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)
     let longest_chain := get_longest_chain old_chains
     let new_chain := longest_chain ++ [new_block]
-    have h_sys_t : sys_t = (protocolB_evolve initial_sys blocks is_leader_crashed_at_t t) := rfl
-    have h_sys_tp1 : sys_tp1 = (protocolB_evolve initial_sys blocks is_leader_crashed_at_t (t + 1)) := rfl
+    have h_sys_t : sys_t = (protocolB_evolve initial_sys blocks is_leader_crashed_at_t next_leader_at_t t) := rfl
+    have h_sys_tp1 : sys_tp1 = (protocolB_evolve initial_sys blocks is_leader_crashed_at_t next_leader_at_t (t + 1)) := rfl
     have h_old_chains : old_chains = List.filterMap (fun v => if ¬v.crashed then some v.chain else none) sys_t.validators := rfl
     have h_longest_chains : longest_chain = get_longest_chain old_chains := rfl
     have h_new_chain : new_chain = longest_chain ++ [new_block] := rfl

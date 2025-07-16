@@ -14,7 +14,7 @@ lemma living_validator_implies_nonempty_chains
     (sys: SystemB)
     (chains : List Chain)
     (hv: ∃ v ∈ sys.validators, v.crashed = false)
-    (hchain : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)) :
+    (hchain : chains = sys.validators.filterMap (fun v ↦ if v.crashed = false then some v.chain else none)) :
     chains ≠ [] := by {
       -- Assume for contradiction that `chains = []`
       intro hnil
@@ -41,7 +41,7 @@ lemma validator_chain_prefix_of_longest_chain
     (hcon : SystemBIsConsistent sys)
     (hmem : v ∈ sys.validators)
     (hcrash : v.crashed = false)
-    (hchain : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none))
+    (hchain : chains = sys.validators.filterMap (fun v ↦ if v.crashed = false then some v.chain else none))
     (hlongest : longest = get_longest_chain chains) :
     v.chain <+: longest := by {
       rw[hlongest]
@@ -68,7 +68,7 @@ lemma system_consistency_unfolded_to_chains
     (sys : SystemB)
     (chains: List Chain)
     (h₁ : SystemBIsConsistent sys)
-    (h₂ : chains = sys.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)) :
+    (h₂ : chains = sys.validators.filterMap (fun v ↦ if v.crashed = false then some v.chain else none)) :
     ∀ c₁ ∈ chains, ∀ c₂ ∈ chains, ChainsAreConsistent c₁ c₂ := by {
       intro c₁ hc₁ c₂ hc₂
       rw [h₂] at hc₁ hc₂

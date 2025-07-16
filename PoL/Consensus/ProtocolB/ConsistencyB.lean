@@ -19,9 +19,10 @@ In view v, the leader collects the chains of the validators, selects the longest
 constructs `new_chain` by appending a new block to that chain, and sends `new_chain` to every
 non‐crashed validator. The leader is updated in a round-robin fashion.
 -/
-def protocolB_step_with_crash (sys : SystemB) (new_block: Block) (is_leader_crashed: ℕ → Bool) (next_leader: SystemB → ℕ) : SystemB :=
+def protocolB_step_with_crash
+  (sys : SystemB) (new_block: Block) (is_leader_crashed: ℕ → Bool) (next_leader: SystemB → ℕ) : SystemB :=
   -- Step 1. Leader collects chains from non-crashed validators
-  let chains := sys.validators.filterMap (λ v ↦ if ¬v.crashed then some v.chain else none)
+  let chains := sys.validators.filterMap (λ v ↦ if v.crashed = false then some v.chain else none)
   -- Step 2. Leader selects the longest chain (assuming non-empty due to h_nonempty and some non-crashed)
   let longest_chain := get_longest_chain chains
   -- Step 3. Leader creates and broadcasts the new chain.
@@ -61,22 +62,20 @@ theorem protocolB_consistency
     let sys_tp1 := protocolB_evolve initial_sys blocks is_leader_crashed_at_t next_leader_at_t (t + 1)
     let new_block := blocks t
     let is_leader_crashed := is_leader_crashed_at_t t
-    let old_chains := sys_t.validators.filterMap (fun v ↦ if ¬v.crashed then some v.chain else none)
+    let old_chains := sys_t.validators.filterMap (fun v ↦ if v.crashed = false then some v.chain else none)
     let longest_chain := get_longest_chain old_chains
     let new_chain := longest_chain ++ [new_block]
     have h_sys_t : sys_t = (protocolB_evolve initial_sys blocks is_leader_crashed_at_t next_leader_at_t t) := rfl
     have h_sys_tp1 : sys_tp1 = (protocolB_evolve initial_sys blocks is_leader_crashed_at_t next_leader_at_t (t + 1)) := rfl
-    have h_old_chains : old_chains = List.filterMap (fun v => if ¬v.crashed then some v.chain else none) sys_t.validators := rfl
+    have h_old_chains : old_chains = List.filterMap (fun v => if v.crashed = false then some v.chain else none) sys_t.validators := rfl
     have h_longest_chains : longest_chain = get_longest_chain old_chains := rfl
     have h_new_chain : new_chain = longest_chain ++ [new_block] := rfl
     have h_new_block : new_block = blocks t := rfl
 
-    --unfold protocolB_evolve
-    --unfold protocolB_step_with_crash
     intro v₁ hv₁ v₂ hv₂ hnc₁ hnc₂
     rw[← h_sys_tp1] at hv₁ hv₂
 
-    have h_chains_consistent : ∀ c₁ ∈ old_chains, ∀ c₂ ∈ old_chains, ChainsAreConsistent c₁ c₂ := by{
+    have h_chains_consistent : ∀ c₁ ∈ old_chains, ∀ c₂ ∈ old_chains, ChainsAreConsistent c₁ c₂ := by {
       apply system_consistency_unfolded_to_chains
       exact ih
       rfl
@@ -85,27 +84,21 @@ theorem protocolB_consistency
       intro v hv
       obtain ⟨v_old, hv_mem, rfl⟩ := List.mem_map.1 hv
       by_cases h₁ : ¬v_old.crashed = true;
-      {
-        by_cases h₂ : is_leader_crashed_at_t t v_old.id = true;
-        {
-          rw[← h_sys_t] at hv_mem
+      . by_cases h₂ : is_leader_crashed_at_t t v_old.id = true;
+        . rw[← h_sys_t] at hv_mem
           rw[← h_old_chains]
-          have htmp : v_old.crashed = false := by {
-            simp_all
-          }
+          have htmp : v_old.crashed = false := by simp_all
           rw [← h_sys_t] at ih
-          have h_validator_chain_prefix_of_longest_chain := validator_chain_prefix_of_longest_chain sys_t v_old old_chains longest_chain ih hv_mem htmp h_old_chains h_longest_chains
-          simp_all
+          have h_validator_chain_prefix_of_longest_chain
+                := validator_chain_prefix_of_longest_chain
+                    sys_t v_old old_chains longest_chain ih hv_mem htmp h_old_chains h_longest_chains
+          simp [h₁, h₂]
           apply prefix_of_append_singleton
           exact h_validator_chain_prefix_of_longest_chain
-        }
-        {
-          simp_all
-        }
-      }
-      {
-        simp_all
-      }
+        . simp[h₁, h₂]
+          unfold old_chains sys_t at h_longest_chains
+          rw[← h_longest_chains]
+      . simp_all
     }
     have h_nonupdate : ∀ v ∈ sys_tp1.validators, v.crashed = false → v.chain ≠ new_chain → v.chain ∈ old_chains := by {
       intro v hv hcf hne
@@ -113,41 +106,30 @@ theorem protocolB_consistency
       have h_crash_v : is_leader_crashed_at_t t v_old.id = true := by {
         by_contra
         rename_i h_id
-        simp_all
         by_cases h₁ : ¬v_old.crashed = true;
-        {
-          simp_all
-        }
-        {
-          simp_all
-        }
+        . simp [h₁, h_id] at hcf hv hne
+          rw[← h_sys_t, ← h_old_chains, ← h_longest_chains, ← h_new_chain] at hne
+          simp at hne
+        . simp_all
       }
       rw[h_crash_v]
       by_cases h₁ : ¬v_old.crashed = true;
-      {
-        simp_all
+      . simp_all
         rw[← h_sys_t]
         rw[← h_sys_t] at hv_mem
         use v_old
-      }
-      {
-        simp_all
-      }
+      . simp_all
     }
 
     by_cases h_c₁_new : v₁.chain = new_chain;
-    {
-      by_cases h_c₂_new : v₂.chain = new_chain;
-      {
-        unfold ChainsAreConsistent
+    . by_cases h_c₂_new : v₂.chain = new_chain;
+      . unfold ChainsAreConsistent
         left
         rw[h_c₂_new]
         apply h_prefix
         exact hv₁
         simp_all
-      }
-      {
-        unfold ChainsAreConsistent
+      . unfold ChainsAreConsistent
         right
         rw[h_c₁_new]
         apply h_prefix
@@ -155,12 +137,8 @@ theorem protocolB_consistency
         unfold Not at hnc₂
         simp at hnc₂
         exact hnc₂
-      }
-    }
-    {
-      by_cases h_c₂_new : v₂.chain = new_chain;
-      {
-        unfold ChainsAreConsistent
+    . by_cases h_c₂_new : v₂.chain = new_chain;
+      . unfold ChainsAreConsistent
         left
         rw[h_c₂_new]
         apply h_prefix
@@ -168,9 +146,7 @@ theorem protocolB_consistency
         unfold Not at hnc₁
         simp at hnc₁
         exact hnc₁
-      }
-      {
-        apply h_chains_consistent
+      . apply h_chains_consistent
         . apply h_nonupdate
           exact hv₁
           unfold Not at hnc₁
@@ -183,8 +159,6 @@ theorem protocolB_consistency
           simp at hnc₂
           exact hnc₂
           exact h_c₂_new
-      }
-    }
   }
 
 

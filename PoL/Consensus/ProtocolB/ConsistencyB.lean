@@ -110,7 +110,8 @@ theorem protocolB_consistency
         . simp [h₁, h_id] at hcf hv hne
           rw[← h_sys_t, ← h_old_chains, ← h_longest_chains, ← h_new_chain] at hne
           simp at hne
-        . simp_all
+        . simp at h₁
+          simp[h₁] at hcf
       }
       rw[h_crash_v]
       by_cases h₁ : ¬v_old.crashed = true;
@@ -128,7 +129,8 @@ theorem protocolB_consistency
         rw[h_c₂_new]
         apply h_prefix
         exact hv₁
-        simp_all
+        simp at hnc₁
+        exact hnc₁
       . unfold ChainsAreConsistent
         right
         rw[h_c₁_new]

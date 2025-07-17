@@ -22,7 +22,7 @@ deriving Repr
 A state has the consistency property if the chains of any two non-crashed
 validators are consistent.
 -/
-def StateBIsConsistent (sys : StateB) : Prop :=
-  ∀ v₁ ∈ sys.validators,
-  ∀ v₂ ∈ sys.validators,
+def StateBIsConsistent (state : StateB) : Prop :=
+  ∀ v₁ ∈ state.validators,
+  ∀ v₂ ∈ state.validators,
   ¬v₁.crashed → ¬v₂.crashed → ChainsAreConsistent v₁.chain v₂.chain

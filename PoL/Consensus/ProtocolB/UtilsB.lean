@@ -8,13 +8,13 @@ import Mathlib.Tactic
 
 import PoL.Consensus.Utils
 import PoL.Consensus.LongestChain
-import PoL.Consensus.ProtocolB.SystemB
+import PoL.Consensus.ProtocolB.StateB
 
 lemma living_validator_implies_nonempty_chains
-    (sys: SystemB)
+    (state: StateB)
     (chains : List Chain)
-    (hv: ∃ v ∈ sys.validators, v.crashed = false)
-    (hchain : chains = sys.validators.filterMap (fun v ↦ if v.crashed = false then some v.chain else none)) :
+    (hv: ∃ v ∈ state.validators, v.crashed = false)
+    (hchain : chains = state.validators.filterMap (fun v ↦ if v.crashed = false then some v.chain else none)) :
     chains ≠ [] := by {
       -- Assume for contradiction that `chains = []`
       intro hnil
@@ -34,14 +34,14 @@ lemma living_validator_implies_nonempty_chains
     }
 
 lemma validator_chain_prefix_of_longest_chain
-    (sys : SystemB)
+    (state : StateB)
     (v : ValidatorB)
     (chains : List Chain)
     (longest : Chain)
-    (hcon : SystemBIsConsistent sys)
-    (hmem : v ∈ sys.validators)
+    (hcon : StateBIsConsistent state)
+    (hmem : v ∈ state.validators)
     (hcrash : v.crashed = false)
-    (hchain : chains = sys.validators.filterMap (fun v ↦ if v.crashed = false then some v.chain else none))
+    (hchain : chains = state.validators.filterMap (fun v ↦ if v.crashed = false then some v.chain else none))
     (hlongest : longest = get_longest_chain chains) :
     v.chain <+: longest := by {
       rw[hlongest]
@@ -49,7 +49,7 @@ lemma validator_chain_prefix_of_longest_chain
       . apply living_validator_implies_nonempty_chains
         use v
         exact hchain
-      . unfold SystemBIsConsistent at hcon
+      . unfold StateBIsConsistent at hcon
         intro c₁ hc₁ c₂ hc₂
         rw[hchain] at hc₁ hc₂
         obtain ⟨v₁, hv₁_mem, hv₁_eq⟩ := List.mem_filterMap.1 hc₁
@@ -65,10 +65,10 @@ lemma validator_chain_prefix_of_longest_chain
     }
 
 lemma system_consistency_unfolded_to_chains
-    (sys : SystemB)
+    (state : StateB)
     (chains: List Chain)
-    (h₁ : SystemBIsConsistent sys)
-    (h₂ : chains = sys.validators.filterMap (fun v ↦ if v.crashed = false then some v.chain else none)) :
+    (h₁ : StateBIsConsistent state)
+    (h₂ : chains = state.validators.filterMap (fun v ↦ if v.crashed = false then some v.chain else none)) :
     ∀ c₁ ∈ chains, ∀ c₂ ∈ chains, ChainsAreConsistent c₁ c₂ := by {
       intro c₁ hc₁ c₂ hc₂
       rw [h₂] at hc₁ hc₂
@@ -79,7 +79,7 @@ lemma system_consistency_unfolded_to_chains
       have not_crashed₂ : ¬v₂.crashed := by simp_all
       have rfl_c₂ : v₂.chain = c₂ := by simp_all
       rw[← rfl_c₁, ← rfl_c₂]
-      unfold SystemBIsConsistent at h₁
+      unfold StateBIsConsistent at h₁
       apply h₁
       exact hv₁_mem
       exact hv₂_mem

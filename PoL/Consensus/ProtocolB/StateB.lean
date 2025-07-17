@@ -12,17 +12,17 @@ structure ValidatorB where
     id      : ℕ
 deriving Repr
 
-/-- A System consists of a list of validators and a designated leader (ommitted for simplicity). -/
-structure SystemB  where
+/-- A state consists of a list of validators and a designated leader (ommitted for simplicity). -/
+structure StateB  where
   validators : List ValidatorB
   leader     : ℕ
 deriving Repr
 
 /--
-A system has the consistency property if the chains of any two non-crashed
+A state has the consistency property if the chains of any two non-crashed
 validators are consistent.
 -/
-def SystemBIsConsistent (sys : SystemB) : Prop :=
+def StateBIsConsistent (sys : StateB) : Prop :=
   ∀ v₁ ∈ sys.validators,
   ∀ v₂ ∈ sys.validators,
   ¬v₁.crashed → ¬v₂.crashed → ChainsAreConsistent v₁.chain v₂.chain

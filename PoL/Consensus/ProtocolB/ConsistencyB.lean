@@ -163,5 +163,4 @@ theorem protocolB_consistency
           exact h_c₂_new
   }
 
-
 end ProtocolB

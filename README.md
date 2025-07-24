@@ -1,6 +1,6 @@
 # PoL
 
-PoL is a tutorial-driven project aiming to formalize and verify core blockchain concepts, such as consensus mechanisms, data availability, and trustless computation, using the Lean theorem prover.
+PoL is a tutorial-driven project aiming to formalize and verify core blockchain concepts, such as consensus mechanisms, data availability, and trustless computation, using the Lean theorem prover. This project largely relies on Professor Tim Roughgarden's [great lecture](https://timroughgarden.org/s25/) at Columbia University.
 
 |Type|Name|||
 |---|---|---|---|

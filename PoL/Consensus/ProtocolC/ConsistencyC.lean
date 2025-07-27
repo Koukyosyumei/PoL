@@ -1,7 +1,7 @@
 import PoL.Consensus.ProtocolC.StateC
 
-def protocolC_step
-  (state : StateC) (new_block : Block) (current_view : ℕ) (next_leader: StateC → ℕ) : StateC :=
+def protocolC_step_with_crash
+  (state : StateC) (new_block : Block) (current_view : ℕ) (is_leader_crashed: ℕ → Bool) (next_leader: StateC → ℕ) : StateC :=
   let n := state.validators.length
 
   -- Phase 1: Collect known chains with views from non-crashed validators
@@ -19,7 +19,7 @@ def protocolC_step
 
   -- Phase 3: Update validators based on quorum conditions
   let updated_validators := state.validators.map (λ v =>
-    if ¬v.crashed then
+    if (¬v.crashed) ∧ (¬is_leader_crashed v.id) then
       match proposal with
       | some new_chain_with_view =>
         let ack_count := known_chains_with_views.length
@@ -38,3 +38,12 @@ def protocolC_step
 
   { validators := updated_validators,
     leader := next_leader state }
+
+def protocolC_evolve
+  (initial_state : StateC) (blocks : ℕ → Block)
+  (is_leader_crashed_at_t: ℕ → ℕ → Bool) (next_leader_at_t: ℕ → StateC → ℕ)
+  : ℕ → StateC
+  | 0   => initial_state
+  | t+1 => protocolC_step_with_crash
+            (protocolC_evolve initial_state blocks is_leader_crashed_at_t next_leader_at_t t)
+            (blocks t) t (is_leader_crashed_at_t t) (next_leader_at_t t)

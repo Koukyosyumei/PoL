@@ -17,10 +17,11 @@ namespace ProtocolB
 A single step of Protocol B.
 In view v, the leader collects the chains of the validators, selects the longest chain,
 constructs `new_chain` by appending a new block to that chain, and sends `new_chain` to every
-non‐crashed validator. The leader is updated in a round-robin fashion.
+non‐crashed validator. The leader is updated in a round-robin fashion. `is_leader_crashed i` is a function
+that determine whether the leader crashes or not when sending message to `i`-th validator.
 -/
 def protocolB_step_with_crash
-  (state : StateB) (new_block: Block) (is_leader_crashed: ℕ → Bool) (next_leader: StateB → ℕ) : StateB :=
+  (state : StateB) (new_block: Block) (is_leader_crashed: ℕ → Bool) (is_crashed: ℕ → Bool) (next_leader: StateB → ℕ) : StateB :=
   -- Step 1. Leader collects chains from non-crashed validators
   let chains := state.validators.filterMap (λ v ↦ if v.crashed = false then some v.chain else none)
   -- Step 2. Leader selects the longest chain (assuming non-empty due to h_nonempty and some non-crashed)
@@ -29,7 +30,7 @@ def protocolB_step_with_crash
   let new_chain := longest_chain ++ [new_block]
   -- Step 4. Non-crashed validators update their state.
   let new_validators := state.validators.map (λ v ↦
-      if (¬ v.crashed) ∧ (¬ is_leader_crashed v.id) then { chain := new_chain, crashed := v.crashed, id := v.id } else v)
+      if (¬ v.crashed) ∧ (¬ is_leader_crashed v.id) then { chain := new_chain, crashed := v.crashed ∨ is_crashed v.id, id := v.id } else v)
   { validators := new_validators, leader := next_leader state }
 
 /--
@@ -38,12 +39,12 @@ A system protocolB_evolves over `t` time steps, with a new block added at each s
 -/
 def protocolB_evolve
   (initial_state : StateB) (blocks : ℕ → Block)
-  (is_leader_crashed_at_t: ℕ → ℕ → Bool) (next_leader_at_t: ℕ → StateB → ℕ)
+  (is_leader_crashed_at_t: ℕ → ℕ → Bool) (is_crashed_at_t: ℕ → ℕ → Bool) (next_leader_at_t: ℕ → StateB → ℕ)
   : ℕ → StateB
   | 0   => initial_state
   | t+1 => protocolB_step_with_crash
-            (protocolB_evolve initial_state blocks is_leader_crashed_at_t next_leader_at_t t)
-            (blocks t) (is_leader_crashed_at_t t) (next_leader_at_t t)
+            (protocolB_evolve initial_state blocks is_leader_crashed_at_t is_crashed_at_t next_leader_at_t t)
+            (blocks t) (is_leader_crashed_at_t t) (is_crashed_at_t t) (next_leader_at_t t)
 
 theorem protocolB_consistency
     (initial_state : StateB)
@@ -51,22 +52,22 @@ theorem protocolB_consistency
     (is_leader_crashed_at_t: ℕ → ℕ → Bool)
     (h_initial_consistent : StateBIsConsistent initial_state)
     (next_leader_at_t: ℕ → StateB → ℕ) :
-    ∀ t, StateBIsConsistent (protocolB_evolve initial_state blocks is_leader_crashed_at_t next_leader_at_t t) := by
+    ∀ t, StateBIsConsistent (protocolB_evolve initial_state blocks is_leader_crashed_at_t is_crashed_at_t next_leader_at_t t) := by
   intro t
   induction t with
   | zero =>
     exact h_initial_consistent
   | succ t ih => {
     -- Define the key components from the protocol step.
-    let state_t := protocolB_evolve initial_state blocks is_leader_crashed_at_t next_leader_at_t t
-    let state_tp1 := protocolB_evolve initial_state blocks is_leader_crashed_at_t next_leader_at_t (t + 1)
+    let state_t := protocolB_evolve initial_state blocks is_leader_crashed_at_t is_crashed_at_t next_leader_at_t t
+    let state_tp1 := protocolB_evolve initial_state blocks is_leader_crashed_at_t is_crashed_at_t next_leader_at_t (t + 1)
     let new_block := blocks t
     let is_leader_crashed := is_leader_crashed_at_t t
     let old_chains := state_t.validators.filterMap (fun v ↦ if v.crashed = false then some v.chain else none)
     let longest_chain := get_longest_chain old_chains
     let new_chain := longest_chain ++ [new_block]
-    have h_state_t : state_t = (protocolB_evolve initial_state blocks is_leader_crashed_at_t next_leader_at_t t) := rfl
-    have h_state_tp1 : state_tp1 = (protocolB_evolve initial_state blocks is_leader_crashed_at_t next_leader_at_t (t + 1)) := rfl
+    have h_state_t : state_t = (protocolB_evolve initial_state blocks is_leader_crashed_at_t is_crashed_at_t next_leader_at_t t) := rfl
+    have h_state_tp1 : state_tp1 = (protocolB_evolve initial_state blocks is_leader_crashed_at_t is_crashed_at_t next_leader_at_t (t + 1)) := rfl
     have h_old_chains : old_chains = List.filterMap (fun v => if v.crashed = false then some v.chain else none) state_t.validators := rfl
     have h_longest_chains : longest_chain = get_longest_chain old_chains := rfl
     have h_new_chain : new_chain = longest_chain ++ [new_block] := rfl
@@ -98,6 +99,8 @@ theorem protocolB_consistency
         . simp[h₁, h₂]
           unfold old_chains state_t at h_longest_chains
           rw[← h_longest_chains]
+          intro h
+          rw[h_new_chain]
       . simp_all
     }
     have h_nonupdate : ∀ v ∈ state_tp1.validators, v.crashed = false → v.chain ≠ new_chain → v.chain ∈ old_chains := by {

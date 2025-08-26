@@ -25,6 +25,11 @@ structure StateC  where
   leader     : ℕ
 deriving Repr
 
+def StateCIsConsistent (state : StateC) : Prop :=
+  ∀ v₁ ∈ state.validators,
+  ∀ v₂ ∈ state.validators,
+  ¬v₁.crashed → ¬v₂.crashed → ChainsAreConsistent v₁.finalized_chain v₂.finalized_chain
+
 /-- Quorum size (strict majority) -/
 def quorum_size (n : ℕ) : ℕ := n / 2 + 1
 
